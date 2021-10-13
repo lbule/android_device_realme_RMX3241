@@ -15,6 +15,6 @@
 #
 
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/omni_RMX3241.mk
+    $(LOCAL_DIR)/twrp_RMX3241.mk
 
 
