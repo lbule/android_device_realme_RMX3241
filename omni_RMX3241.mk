@@ -39,6 +39,12 @@ PRODUCT_PACKAGES += \
     android.hardware.fastboot@1.0-impl-mock \
     fastbootd
 
+PRODUCT_PROPERTY_OVERRIDES += \
+  ro.crypto.volume.filenames_mode=aes-256-cts
+
+PRODUCT_PACKAGES += \
+    twrpfbe
+    
 ## Device identifier. This must come after all inclusions
 PRODUCT_DEVICE := RMX3241
 PRODUCT_NAME := omni_RMX3241
