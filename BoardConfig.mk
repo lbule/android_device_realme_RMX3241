@@ -112,6 +112,7 @@ TARGET_SYSTEM_PROP := $(DEVICE_PATH)/system.prop
 
 # Metadata
 BOARD_USES_METADATA_PARTITION := true
+BOARD_ROOT_EXTRA_FOLDERS += metadata
 
 # Hack: for future support
 PLATFORM_SECURITY_PATCH := 2099-12-31
