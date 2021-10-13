@@ -1,53 +1,63 @@
-name: Building TWRP
+name: twrp-build
 
 on:
-  workflow_dispatch:
-    inputs:
-        tagName:
-            description: 'tagName'     
-            required: true
-            default: ''
-        tagBody:
-            description: 'tagBody'     
-            required: true
-            default: ''
-
-env:
-  TARGET: twrp
-  MANIFEST: git://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-11
+  push:
+    branches: [ twrp-11 ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-18.04
+    
     steps:
-       - name: Cleaning Up Runner
-         uses: rokibhasansagar/slimhub_actions@main
+    - name: Clean Up
+      run: |
+        docker rmi `docker images -q`
+        sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/sudo apt/sources.list.d
+        sudo apt -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* mysql* php*
+        sudo apt update
+        sudo apt -y autoremove --purge
+        sudo apt clean
+        
+    - name: Update packages
+      run: |
+        sudo apt update
+        sudo apt full-upgrade
+        
+    - name: Install required packages
+      run: sudo apt install git-core gnupg flex bison gperf build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev tree lib32z-dev libgl1-mesa-dev libxml2-utils xsltproc unzip jq
+      
+    - name: Install Repo
+      run: |
+        mkdir ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+ 
+    - name: Sync twrp
+      run: |
+        PATH=~/bin:$PATH
+        mkdir twrp
+        cd twrp
+        git config --global user.name "GitHub Action"
+        git config --global user.email "noreply@github.com"
+        repo init --depth=1 -u git://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-11
+        repo sync -j16
+        cp -f vendor/twrp/dummy/Android.mk frameworks/base/core/xsd/vts/Android.mk
+        cp -f vendor/twrp/dummy/Android.mk frameworks/base/services/core/xsd/vts/Android.mk
+    - name: Checkout device tree
+      uses: actions/checkout@v2
+      with:
+        path: twrp/device/realme/RMX3241
 
-       - name: Recovery Compilation
-         uses: PitchBlackRecoveryProject/Recovery-Compiler@production
-
-       - name: Create Release
-         id: create_release
-         uses: actions/create-release@v1
-         env:
-           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-         with:
-           tag_name: ${{ github.event.inputs.tagName }}
-           release_name: Release ${{ github.event.inputs.tagName }}
-           body: ${{ github.event.inputs.tagBody }}
-           draft: false
-           prerelease: false
-           
-       - name: Upload Release Asset
-         id: upload-release-asset 
-         uses: xresloader/upload-to-github-release@master
-         env:
-           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-         with:
-           file: "${BuildPath}/out/target/product/${CODENAME}/{recovery.img,*.zip}"
-           release_id: ${{ steps.create_release.outputs.id }}
-           tag_name: ${{ github.event.inputs.tagName }}
-           overwrite: true
-           verbose: false
-           draft: false
+    - name: Start Building
+      run: |
+        PATH=~/bin:$PATH
+        cd twrp
+        export ALLOW_MISSING_DEPENDENCIES=true
+        source build/envsetup.sh
+        lunch omni_RMX3042-eng 
+        mka recoveryimage -j4
+    
+    - uses: actions/upload-artifact@v2
+      with:
+        name: twrp.img
+        path: twrp/out/target/product/RMX3042/recovery.img
